@@ -1,0 +1,177 @@
+<html>
+    <head>
+        <title>WebSocket Client</title>
+    </head>
+    <body>
+        <h1>WebSocket Client</h1>
+        <p>
+            <button onClick="initWebSocket();">Connect</button>
+            <button onClick="stopWebSocket();">Disconnect</button>
+            <button onClick="checkSocket();">State</button>
+            <button onClick="restartGame();">Restart Game </button>
+        </p>
+        <p>
+            <textarea id="debugTextArea" style="width:400px;height:200px;"></textarea>
+        </p>
+        <p>
+            <input type="text" id="inputText" onkeydown="if(event.keyCode==13)sendMessage();"/>
+            <button onClick="sendMessage();">Try number</button>
+        </p>
+        <p>
+            <input type="text" id="inputNumberOfTries" onkeydown="if(event.keyCode==13)sendMessage();"/>
+            <button onClick="setNumberOfTries();">Set Tries Limit</button>
+        </p>
+        <p>
+            <input type="text" id="inputSuperiorLimit" onkeydown="if(event.keyCode==13)sendMessage();"/>
+            <button onClick="setSuperiorLimit();">Set Superior Limit</button>
+        </p>
+        <p>
+            <input type="text" id="inputInferiorLimit" onkeydown="if(event.keyCode==13)sendMessage();"/>
+            <button onClick="setInferiorLimit();">Set Inferior Limit</button>
+        </p>
+
+
+        <script type="text/javascript">
+            var debugTextArea = document.getElementById("debugTextArea");
+            function debug(message) {
+                debugTextArea.value += message + "\n";
+                debugTextArea.scrollTop = debugTextArea.scrollHeight;
+            }
+            var x = 0;
+            var numberOfTries = 0;
+            var limitOfTries = 0;
+            var inferiorLimit = 1;
+            var superiorLimit = 100;
+
+
+            function sendMessage() {
+                var msg = document.getElementById("inputText").value;
+                var aNumber = parseInt(msg, 10);
+                if ( websocket != null )
+                {
+                    document.getElementById("inputText").value = "";
+                    if (typeof aNumber == 'number' && x > 0) {
+                        if (limitOfTries != 0 && limitOfTries < numberOfTries) {
+                            websocket.send( "you lost, ha-ha !!! ");
+                            restartGame();
+                        } else {
+                            ++numberOfTries;
+                            if (x > aNumber) {
+                                websocket.send( "number to low");
+                            }
+                            else if (x < aNumber) {
+                                websocket.send( "number to great");
+                            }
+                            else if (x === aNumber) {
+                                websocket.send( "I am weak. You won after " +numberOfTries +" tries");
+                            }
+                        }
+                    }
+                    console.log( "string sent :", '"'+msg+'"' );
+                }
+            }
+
+            var wsUri = "ws://localhost:1234";
+            var websocket = null;
+
+
+            function initWebSocket() {
+                try {
+                    superiorLimit = 100;
+                    inferiorLimit = 1;
+                    x = Math.floor((Math.random() * superiorLimit) + inferiorLimit);
+                    if (typeof MozWebSocket == 'function')
+                        WebSocket = MozWebSocket;
+                    if ( websocket && websocket.readyState == 1 )
+                        websocket.close();
+                    websocket = new WebSocket( wsUri );
+                    websocket.onopen = function (evt) {
+                        debug("CONNECTED");
+                        debug("Game is initialized. You can start playing");
+                        websocket.send( "you need to guess a number between " +inferiorLimit+ " and "+ superiorLimit);
+                    };
+                    websocket.onclose = function (evt) {
+                        debug("DISCONNECTED");
+                    };
+                    websocket.onmessage = function (evt) {
+                        console.log( "Message received :", evt.data );
+                        debug( evt.data );
+                    };
+                    websocket.onerror = function (evt) {
+                        debug('ERROR: ' + evt.data);
+                    };
+                } catch (exception) {
+                    debug('ERROR: ' + exception);
+                }
+            }
+
+            function stopWebSocket() {
+                if (websocket)
+                    websocket.close();
+            }
+
+            function restartGame() {
+                x = Math.floor((Math.random() * superiorLimit) + inferiorLimit);
+                numberOfTries = 0;
+                websocket.send( "You need to guess a number between " +inferiorLimit+ " and "+ superiorLimit);
+                if (limitOfTries > 0)   websocket.send( "You have "+limitOfTries+ " chances to guess my secret number" );
+                websocket.send( "GAME ON !" );
+            }
+
+            function setInferiorLimit() {
+                var msg = document.getElementById("inputInferiorLimit").value;
+                var aNumber = parseInt(msg, 10);
+                if (aNumber === 0) inferiorLimit = 1;
+                else inferiorLimit = aNumber;
+                websocket.send( "inferiorLimit set to:" +inferiorLimit+ ". Restart game to apply");
+            }
+
+            function setSuperiorLimit() {
+                var msg = document.getElementById("inputSuperiorLimit").value;
+                var aNumber = parseInt(msg, 10);
+                if (aNumber === 0) superiorLimit = inferiorLimit + 1;
+                else superiorLimit = aNumber;
+                websocket.send( "superiorLimit set to:" +superiorLimit+ ". Restart game to apply!");
+            }
+
+            function setNumberOfTries() {
+                var msg = document.getElementById("inputNumberOfTries").value;
+                var aNumber = parseInt(msg, 10);
+                limitOfTries = aNumber;
+                websocket.send("Rules changed ! Restart game !");
+                restartGame();
+            }
+
+            function checkSocket() {
+                if (websocket != null) {
+                    var stateStr;
+                    switch (websocket.readyState) {
+                        case 0: {
+                            stateStr = "CONNECTING";
+                            break;
+                        }
+                        case 1: {
+                            stateStr = "CONNECTED";
+                            break;
+                        }
+                        case 2: {
+                            stateStr = "DISCONNECTING";
+                            break;
+                        }
+                        case 3: {
+                            stateStr = "DISCONNECTED";
+                            break;
+                        }
+                        default: {
+                            stateStr = "ERROR";
+                            break;
+                        }
+                    }
+                    debug("WebSocket state = " + websocket.readyState + " ( " + stateStr + " )");
+                } else {
+                    debug("WebSocket is null");
+                }
+            }
+        </script>
+    </body>
+</html>
